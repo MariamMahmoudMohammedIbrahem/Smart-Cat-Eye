@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:functional_data/functional_data.dart';
 import 'package:provider/provider.dart';
 
@@ -36,9 +36,7 @@ class DeviceInteractionTab extends StatelessWidget {
                 serviceDiscoverer.discoverServices(device.id),
           ),
           characteristic: characteristic,
-          writeWithResponse: interactor.writeCharacteristicWithResponse,
           writeWithoutResponse: interactor.writeCharacteristicWithoutResponse,
-          readCharacteristic: interactor.readCharacteristic,
           subscribeToCharacteristic: interactor.subScribeToCharacteristic,
           device: device,
         ),
@@ -84,9 +82,7 @@ class Connecting extends StatefulWidget {
   const Connecting({
     required this.viewModel,
     required this.characteristic,
-    required this.writeWithResponse,
     required this.writeWithoutResponse,
-    required this.readCharacteristic,
     required this.subscribeToCharacteristic,
     required this.device,
     super.key,
@@ -96,12 +92,7 @@ class Connecting extends StatefulWidget {
   final QualifiedCharacteristic characteristic;
   final Future<void> Function(
           QualifiedCharacteristic characteristic, List<int> value)
-      writeWithResponse;
-  final Future<void> Function(
-          QualifiedCharacteristic characteristic, List<int> value)
       writeWithoutResponse;
-  final Future<List<int>> Function(QualifiedCharacteristic characteristic)
-      readCharacteristic;
   final Stream<List<int>> Function(QualifiedCharacteristic characteristic)
       subscribeToCharacteristic;
   final DiscoveredDevice device;
@@ -169,24 +160,35 @@ class _ConnectingState extends State<Connecting> {
                         color: Colors.deepOrange.shade300),
                   ),
                   Switch(
-                    value: isOn,
-                    onChanged: (value) {
-                      setState(() {
-                        isOn =
-                            value; //shouldn't be changed here but inside the listen
-                        widget.subscribeToCharacteristic(widget.characteristic);
-                        widget.writeWithoutResponse(widget.characteristic,
-                            value ? switchOn : switchOff);
-                        widget.writeWithoutResponse(
-                            widget.characteristic, requestStatus);
-                      });
-                    },
+                    value: isOn &&
+                        widget.viewModel.connectionStatus ==
+                            DeviceConnectionState.connected,
+                    onChanged: isToastVisible
+                        ? (value) {}
+                        : (value) {
+                            setState(() {
+                              if (widget.viewModel.connectionStatus ==
+                                  DeviceConnectionState.connected) {
+                                subscribeCharacteristic(
+                                    'request the status of the device again');
+                                widget.writeWithoutResponse(
+                                    widget.characteristic,
+                                    value ? switchOn : switchOff);
+                              } else {
+                                showToast(
+                                    'you must be connected to the device to be able to send the data',
+                                    Toast.LENGTH_LONG);
+                              }
+                            });
+                          },
                   ),
                 ],
               ),
 
               Visibility(
-                visible: isOn,
+                visible: isOn &&
+                    widget.viewModel.connectionStatus ==
+                        DeviceConnectionState.connected,
                 child: Column(
                   children: [
                     Divider(
@@ -202,19 +204,38 @@ class _ConnectingState extends State<Connecting> {
                               fontWeight: FontWeight.bold,
                               color: Colors.deepOrange.shade300),
                         ),
-                        Icon(
-                          isSynced ? Icons.check_circle : Icons.error,
-                          color: isSynced
-                              ? Colors.deepOrange.shade300
-                              : Colors.red,
-                          size: 30,
+                        ElevatedButton(
+                          onPressed: () {
+                            subscribeCharacteristic(
+                                'try sending the settings again');
+                            widget.writeWithoutResponse(
+                                widget.characteristic, requestStatus);
+                          },
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.sync,
+                                color: Colors.deepOrange.shade300,
+                                size: 15,
+                              ),
+                              Text(
+                                'sync',
+                                style: TextStyle(
+                                  color: Colors.deepOrange.shade300,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              if (isOn/* && isSynced*/)
+              if (isOn &&
+                  isSynced &&
+                  widget.viewModel.connectionStatus ==
+                      DeviceConnectionState.connected)
                 Column(
                   children: [
                     ///*delay_adjustment**
@@ -272,27 +293,49 @@ class _ConnectingState extends State<Connecting> {
                               ),
                             ],
                           ),
-                          Slider(
-                            value: sequentialDelay,
-                            min: 0,
-                            max: 1000,
-                            onChanged: (value) {
-                              setState(() {
-                                sequentialDelay = value;
-                                int checkSum = 0x02 + 0x01 + value.toInt();
-                                widget.subscribeToCharacteristic(
-                                    widget.characteristic);
-                                widget.writeWithoutResponse(
-                                    widget.characteristic, [
-                                  0xAA,
-                                  0x02,
-                                  0x01,
-                                  value.toInt(),
-                                  checkSum,
-                                  0xBB
-                                ]);
-                              });
-                            },
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('$sequentialSlider ms'),
+                              Expanded(
+                                child: Slider(
+                                  value: sequentialSlider.toDouble(),
+                                  min: 0,
+                                  max: 1000,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      sequentialSlider = value.toInt();
+                                    });
+                                    debounce?.cancel();
+                                    debounce =
+                                        Timer(const Duration(seconds: 1), () {
+                                      int checkSum =
+                                          0x02 + 0x01 + sequentialSlider;
+                                      subscribeCharacteristic(
+                                          'try sending the settings again');
+
+                                      ///slider
+                                      String hexString = sequentialDelay
+                                          .toRadixString(16)
+                                          .padLeft(4, '0')
+                                          .toUpperCase();
+                                      widget.writeWithoutResponse(
+                                          widget.characteristic, [
+                                        0xAA,
+                                        0x02,
+                                        0x02,
+                                        int.parse(hexString.substring(0, 2),
+                                            radix: 16),
+                                        int.parse(hexString.substring(2, 4),
+                                            radix: 16),
+                                        checkSum,
+                                        0xBB,
+                                      ]);
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 20),
                         ],
@@ -320,8 +363,8 @@ class _ConnectingState extends State<Connecting> {
                               ),
                               ElevatedButton(
                                 onPressed: () {
-                                  widget.subscribeToCharacteristic(
-                                      widget.characteristic);
+                                  subscribeCharacteristic(
+                                      'try sending the settings again');
                                   widget.writeWithoutResponse(
                                       widget.characteristic,
                                       [0xAA, 0x03, 0x00, 0x00, 0x03, 0xBB]);
@@ -330,27 +373,48 @@ class _ConnectingState extends State<Connecting> {
                               ),
                             ],
                           ),
-                          Slider(
-                            value: toggleDelay,
-                            min: 0,
-                            max: 1000,
-                            onChanged: (value) {
-                              setState(() {
-                                toggleDelay = value;
-                                int checkSum = 0x03 + 0x01 + value.toInt();
-                                widget.subscribeToCharacteristic(
-                                    widget.characteristic);
-                                widget.writeWithoutResponse(
-                                    widget.characteristic, [
-                                  0xAA,
-                                  0x03,
-                                  0x01,
-                                  toggleDelay.toInt(),
-                                  checkSum,
-                                  0xBB
-                                ]);
-                              });
-                            },
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('$toggleSlider ms'),
+                              Expanded(
+                                child: Slider(
+                                  value: toggleSlider.toDouble(),
+                                  min: 0,
+                                  max: 1000,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      toggleSlider = value.toInt();
+                                    });
+                                    debounce?.cancel();
+                                    debounce =
+                                        Timer(const Duration(seconds: 1), () {
+                                      int checkSum = 0x02 + 0x01 + toggleSlider;
+                                      subscribeCharacteristic(
+                                          'try sending the settings again');
+
+                                      ///slider
+                                      String hexString = toggleDelay
+                                          .toRadixString(16)
+                                          .padLeft(4, '0')
+                                          .toUpperCase();
+                                      widget.writeWithoutResponse(
+                                          widget.characteristic, [
+                                        0xAA,
+                                        0x02,
+                                        0x02,
+                                        int.parse(hexString.substring(0, 2),
+                                            radix: 16),
+                                        int.parse(hexString.substring(2, 4),
+                                            radix: 16),
+                                        checkSum,
+                                        0xBB,
+                                      ]);
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -380,14 +444,10 @@ class _ConnectingState extends State<Connecting> {
                       value: 0,
                       groupValue: selectedPair,
                       onChanged: (value) {
-                        setState(() {
-                          selectedPair = 0;
-                        });
-                        // setState(() {
-                        widget.subscribeToCharacteristic(widget.characteristic);
-                        widget.writeWithoutResponse(widget.characteristic,
-                            [0xAA, 0x04, 0x01, 0x00, 0x05, 0xBB]);
-                        // });
+                        subscribeCharacteristic(
+                            'try sending the settings again');
+                        widget.writeWithoutResponse(
+                            widget.characteristic, ledPair0);
                       },
                     ),
                     RadioListTile<int>(
@@ -401,13 +461,10 @@ class _ConnectingState extends State<Connecting> {
                       value: 1,
                       groupValue: selectedPair,
                       onChanged: (value) {
-                        setState(() {
-                          selectedPair = 1;
-                        });
-                        widget.subscribeToCharacteristic(widget.characteristic);
-                        widget.writeWithoutResponse(widget.characteristic,
-                            [0xAA, 0x04, 0x01, 0x01, 0x06, 0xBB]);
-                        // Add command to select one LED pair here
+                        subscribeCharacteristic(
+                            'try sending the settings again');
+                        widget.writeWithoutResponse(
+                            widget.characteristic, ledPair1);
                       },
                     ),
                     RadioListTile<int>(
@@ -421,12 +478,10 @@ class _ConnectingState extends State<Connecting> {
                       value: 2,
                       groupValue: selectedPair,
                       onChanged: (value) {
-                        setState(() {
-                          selectedPair = 2;
-                        });
-                        widget.subscribeToCharacteristic(widget.characteristic);
-                        widget.writeWithoutResponse(widget.characteristic,
-                            [0xAA, 0x04, 0x01, 0x02, 0x07, 0xBB]);
+                        subscribeCharacteristic(
+                            'try sending the settings again');
+                        widget.writeWithoutResponse(
+                            widget.characteristic, ledPair2);
                       },
                     ),
                   ],
@@ -439,29 +494,116 @@ class _ConnectingState extends State<Connecting> {
   }
 
   @override
+  void initState() {
+    monitorDeviceStatus();
+    super.initState();
+  }
+
+  Future<void> subscribeCharacteristic(String msg) async {
+    receiving = false;
+    subscribeStream =
+        widget.subscribeToCharacteristic(widget.characteristic).listen((event) {
+      if (event.length == 3 && event[1] == success[1]) {
+        setState(() {
+          isOn = true;
+        });
+        widget.writeWithoutResponse(widget.characteristic, requestStatus);
+        showToast('send successfully', Toast.LENGTH_SHORT);
+      } else if (event.length == 3 && event[1] == error[1]) {
+        showToast(
+            'error happened while sending the settings', Toast.LENGTH_SHORT);
+        setState(() {
+          receiving = true;
+        });
+      } else if (event.length == 3 && event[1] == inputDataError[1]) {
+        showToast('wrong data', Toast.LENGTH_SHORT);
+        setState(() {
+          receiving = true;
+        });
+      } else if (event[1] == 0x15) {
+        showToast('synced successfully', Toast.LENGTH_SHORT);
+        setState(() {
+          isSynced = true;
+          isOn = event[3] == 1 ? true : false;
+          selectedMode = event[4] == 0x02 ? 'Sequential Delay' : 'Toggle Delay';
+          if (event[4] == 0x02) {
+            selectedMode = 'Sequential Delay';
+            sequentialDelay = convertToInteger([event[5], event[6]]);
+            sequentialSlider = sequentialDelay;
+          } else if (event[4] == 0x03) {
+            selectedMode = 'Toggle Delay';
+            toggleDelay = convertToInteger([event[5], event[6]]);
+            toggleSlider = toggleDelay;
+          }
+          selectedPair = event[7];
+          receiving = true;
+        });
+      }
+    });
+    if (!receiving) {
+      Future.delayed(const Duration(seconds: 3)).then((value) => {
+            if (!receiving)
+              {
+                showToast(msg, Toast.LENGTH_SHORT),
+                setState(() {
+                  sequentialSlider = sequentialDelay;
+                  toggleSlider = toggleDelay;
+                }),
+              }
+          });
+    }
+  }
+
+  int convertToInteger(List<int> bytes) {
+    if (bytes.length != 2) {
+      throw ArgumentError("The list must contain exactly 2 bytes.");
+    }
+    for (int byte in bytes) {
+      if (byte < 0 || byte > 255) {
+        throw RangeError("Each byte should be between 0 and 255.");
+      }
+    }
+    return (bytes[0] << 8) | bytes[1];
+  }
+
+  void monitorDeviceStatus() {
+    connectionStatusStream.listen((status) {
+      if (status == DeviceConnectionState.connected) {
+        subscribeCharacteristic('request the status of the device again');
+        widget.writeWithoutResponse(widget.characteristic, requestStatus);
+      }
+    }, onError: (error) {
+      print("Error in connection status stream: $error");
+    });
+  }
+
+  void showToast(String msg, Toast? length) {
+    if (isToastVisible) return;
+
+    setState(() {
+      isToastVisible = true;
+    });
+
+    Fluttertoast.showToast(
+            msg: msg,
+            toastLength: length,
+            gravity: ToastGravity.BOTTOM,
+            backgroundColor: Colors.deepOrange,
+            textColor: Colors.black)
+        .then((_) {
+      Future.delayed(const Duration(seconds: 1)).then(
+        (value) => setState(() {
+          isToastVisible = false;
+        }),
+      );
+    });
+  }
+
+  @override
   void dispose() {
     widget.viewModel.deviceConnector.disconnect(widget.device.id);
     subscribeStream?.cancel();
+    debounce?.cancel();
     super.dispose();
-  }
-
-  Future<void> subscribeCharacteristic() async {
-    subscribeStream =
-        widget.subscribeToCharacteristic(widget.characteristic).listen((event) {
-      if (event == success) {
-        isOn = true;
-        //mode
-        //delay
-        //led pair
-      } else if (event == error) {
-      } else if (event == inputDataError) {
-      } else {
-        isOn = true;
-        //mode
-        //delay
-        //led pair
-        isSynced = true;
-      }
-    });
   }
 }

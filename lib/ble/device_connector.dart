@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:cat/ble/reactive_state.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 
+final connectionStatusController = StreamController<DeviceConnectionState>.broadcast();
+
 class DeviceConnector extends ReactiveState<ConnectionStateUpdate> {
   DeviceConnector({
     required FlutterReactiveBle ble,
@@ -25,6 +27,7 @@ class DeviceConnector extends ReactiveState<ConnectionStateUpdate> {
     _logMessage('Start connecting to $deviceId');
     _connection = _ble.connectToDevice(id: deviceId).listen(
             (update) {
+          connectionStatusController.add(update.connectionState);
           _logMessage(
               'ConnectionState for device $deviceId : ${update.connectionState}');
           _deviceConnectionController.add(update);

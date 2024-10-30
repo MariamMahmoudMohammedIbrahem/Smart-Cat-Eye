@@ -68,7 +68,8 @@ class Scanning extends StatefulWidget {
   State<Scanning> createState() => _ScanningState();
 }
 
-class _ScanningState extends State<Scanning> with SingleTickerProviderStateMixin {
+class _ScanningState extends State<Scanning>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _waveRadiusAnimation;
   late Animation<double> _waveOpacityAnimation;
@@ -78,7 +79,8 @@ class _ScanningState extends State<Scanning> with SingleTickerProviderStateMixin
     double height = MediaQuery.of(context).size.height;
     return Scaffold(
       body: Padding(
-        padding: EdgeInsets.symmetric(horizontal: width * 0.07, vertical: height * 0.01),
+        padding: EdgeInsets.symmetric(
+            horizontal: width * 0.07, vertical: height * 0.01),
         child: Column(
           children: [
             Center(
@@ -87,7 +89,6 @@ class _ScanningState extends State<Scanning> with SingleTickerProviderStateMixin
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // Animated expanding wave
                     AnimatedBuilder(
                       animation: _controller,
                       builder: (context, child) {
@@ -96,13 +97,14 @@ class _ScanningState extends State<Scanning> with SingleTickerProviderStateMixin
                           height: _waveRadiusAnimation.value * 2,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.deepOrange.withOpacity(_waveOpacityAnimation.value),
+                            color: Colors.deepOrange
+                                .withOpacity(_waveOpacityAnimation.value),
                           ),
                         );
                       },
                     ),
-                    // Bluetooth icon
-                    const Icon(Icons.bluetooth, size: 70, color: Colors.deepOrange),
+                    const Icon(Icons.bluetooth,
+                        size: 70, color: Colors.deepOrange),
                   ],
                 ),
               ),
@@ -125,7 +127,6 @@ class _ScanningState extends State<Scanning> with SingleTickerProviderStateMixin
                   "Select a device to connect",
                   style: TextStyle(color: Colors.grey[600]),
                 ),
-
                 ElevatedButton(
                   onPressed: _startScanning,
                   child: const Text(
@@ -134,7 +135,6 @@ class _ScanningState extends State<Scanning> with SingleTickerProviderStateMixin
                 ),
               ],
             ),
-            // const SizedBox(height: 20),
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
@@ -145,26 +145,26 @@ class _ScanningState extends State<Scanning> with SingleTickerProviderStateMixin
                   final device = widget.scannerState.discoveredDevices
                       .where((device) => device.name.isNotEmpty)
                       .toList()[index];
-              
+
                   return GestureDetector(
                     onTap: () {
                       widget.deviceConnector.connect(device.id).then(
                             (value) => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DeviceInteractionTab(
-                              device: device,
-                              characteristic: QualifiedCharacteristic(
-                                characteristicId: Uuid.parse(
-                                    "0000ffe1-0000-1000-8000-00805f9b34fb"),
-                                serviceId: Uuid.parse(
-                                    "0000ffe0-0000-1000-8000-00805f9b34fb"),
-                                deviceId: device.id,
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => DeviceInteractionTab(
+                                  device: device,
+                                  characteristic: QualifiedCharacteristic(
+                                    characteristicId: Uuid.parse(
+                                        "0000ffe1-0000-1000-8000-00805f9b34fb"),
+                                    serviceId: Uuid.parse(
+                                        "0000ffe0-0000-1000-8000-00805f9b34fb"),
+                                    deviceId: device.id,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      );
+                          );
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -175,7 +175,8 @@ class _ScanningState extends State<Scanning> with SingleTickerProviderStateMixin
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.devices, size: 30, color: Colors.deepOrange.shade300),
+                          Icon(Icons.devices,
+                              size: 30, color: Colors.deepOrange.shade300),
                           const SizedBox(width: 16),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,33 +196,7 @@ class _ScanningState extends State<Scanning> with SingleTickerProviderStateMixin
                   );
                 },
               ),
-            ),
-              /*ListTile(
-                title: Text(e.name),
-                subtitle: Text(e.id),
-                onTap: () {
-                  // _connect();
-                  widget.deviceConnector.connect(e.id).then(
-                        (value) => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => DeviceInteractionTab(
-                          device: e,
-                          characteristic: QualifiedCharacteristic(
-                            characteristicId: Uuid.parse(
-                                "0000ffe1-0000-1000-8000-00805f9b34fb"),
-                            serviceId: Uuid.parse(
-                                "0000ffe0-0000-1000-8000-00805f9b34fb"),
-                            deviceId: e.id,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),*/
-
-          ],
+            )          ],
         ),
       ),
     );
@@ -232,7 +207,7 @@ class _ScanningState extends State<Scanning> with SingleTickerProviderStateMixin
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
-    )..repeat(); // Repeats the wave animation continuously
+    )..repeat();
 
     _waveRadiusAnimation = Tween<double>(begin: 0, end: 100).animate(
       CurvedAnimation(
@@ -264,7 +239,7 @@ class _ScanningState extends State<Scanning> with SingleTickerProviderStateMixin
   }
 
   @override
-  void dispose(){
+  void dispose() {
     _controller.dispose();
     super.dispose();
   }

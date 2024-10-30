@@ -21,32 +21,41 @@ class _BluetoothPermissionState extends State<BluetoothPermission> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(
-              width: width,
-              child: Image.asset('assets/images/bluetooth.jpg'),
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  Icons.bluetooth,
+                  size: width * .5,
+                  color: Colors.deepOrange,
+                ),
+                const Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Icon(
+                    Icons.help,
+                    size: 30,
+                    color: Colors.deepOrange,
+                  ),
+                ),
+              ],
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: width * 0.12),
-              child: const Text(
+              child: Text(
                 'We will need your Bluetooth to be able to scan for the device',
                 style: TextStyle(
                   fontSize: 25,
-                  fontWeight: FontWeight.bold,
+                  color: Colors.deepOrange.shade100
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
             ElevatedButton(
               onPressed: _requestPermission,
-              style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.brown,
-                  backgroundColor: Colors.brown.shade600,
-                  disabledForegroundColor: Colors.brown.shade600,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10))),
               child: const Text(
                 'accessBluetooth',
-                style: TextStyle(color: Colors.white, fontSize: 18),
+                style: TextStyle(color: Colors.deepOrange, fontSize: 18),
               ),
             ),
           ],

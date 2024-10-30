@@ -4,7 +4,6 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../constants/constants.dart';
 
-
 class LocationPermission extends StatefulWidget {
   const LocationPermission({super.key});
 
@@ -21,32 +20,27 @@ class _LocationPermissionState extends State<LocationPermission> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(
-              width: width,
-              child: Image.asset('assets/images/location.jpg'),
+            Icon(
+              Icons.location_off_rounded,
+              color: Colors.deepOrange,
+              size: width * .5,
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: width * .12),
-              child: const Text(
+              child: Text(
                 'We will need your location to be able to connect to your device',
                 style: TextStyle(
                   fontSize: 25,
-                  fontWeight: FontWeight.bold,
+                  color: Colors.deepOrange.shade100,
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
             ElevatedButton(
               onPressed: _requestPermission,
-              style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.brown,
-                  backgroundColor: Colors.brown.shade500, //replace with 855A2D
-                  disabledForegroundColor: Colors.brown.shade600,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10))),
               child: const Text(
                 'accessLocation',
-                style: TextStyle(color: Colors.white, fontSize: 18),
+                style: TextStyle(color: Colors.deepOrange, fontSize: 18),
               ),
             ),
           ],
