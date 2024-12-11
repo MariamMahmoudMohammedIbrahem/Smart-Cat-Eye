@@ -149,6 +149,22 @@ class _ConnectingState extends State<Connecting> {
           child: ListView(
             children: [
               ///*mode_selection**
+              /*ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    isOn = !isOn;
+                  });
+                },
+                child: const Text('switch on'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    isSynced = !isSynced;
+                  });
+                },
+                child: const Text('isSynced'),
+              ),*/
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -300,8 +316,8 @@ class _ConnectingState extends State<Connecting> {
                               Expanded(
                                 child: Slider(
                                   value: sequentialSlider.toDouble(),
-                                  min: 0,
-                                  max: 1000,
+                                  min: 200,
+                                  max: 2000,
                                   onChanged: (value) {
                                     setState(() {
                                       sequentialSlider = value.toInt();
@@ -309,16 +325,26 @@ class _ConnectingState extends State<Connecting> {
                                     debounce?.cancel();
                                     debounce =
                                         Timer(const Duration(seconds: 1), () {
-                                      int checkSum =
-                                          0x02 + 0x01 + sequentialSlider;
+                                      // int leastSignificantByte = checkSum & 0xFF;
+
+
                                       subscribeCharacteristic(
                                           'try sending the settings again');
 
                                       ///slider
-                                      String hexString = sequentialDelay
+                                      String hexString = sequentialSlider
                                           .toRadixString(16)
                                           .padLeft(4, '0')
                                           .toUpperCase();
+
+                                      int checkSum =
+                                          0x02 + 0x02 + int.parse(hexString.substring(0, 2),
+                                              radix: 16)+int.parse(hexString.substring(2, 4),
+                                              radix: 16);
+                                      // Optional: Convert least significant byte to hexadecimal string if needed
+                                      String hexByte = checkSum.toRadixString(16).padLeft(2, '0').toUpperCase();
+                                      String leastSignificantHexByte = hexByte.substring(hexByte.length - 2);
+                                      print('checkSum $leastSignificantHexByte');
                                       widget.writeWithoutResponse(
                                           widget.characteristic, [
                                         0xAA,
@@ -328,9 +354,10 @@ class _ConnectingState extends State<Connecting> {
                                             radix: 16),
                                         int.parse(hexString.substring(2, 4),
                                             radix: 16),
-                                        checkSum,
+                                       checkSum,
                                         0xBB,
                                       ]);
+                                      print('sequential${[0xAA, 0x02, 0x02, int.parse(hexString.substring(0, 2), radix: 16), int.parse(hexString.substring(2, 4), radix: 16), checkSum, 0xBB,]}');
                                     });
                                   },
                                 ),
@@ -367,7 +394,7 @@ class _ConnectingState extends State<Connecting> {
                                       'try sending the settings again');
                                   widget.writeWithoutResponse(
                                       widget.characteristic,
-                                      [0xAA, 0x03, 0x00, 0x00, 0x03, 0xBB]);
+                                      [0xAA, 0x03, 0x02, 0x01, 0xF4, 0xFA, 0xBB]);
                                 },
                                 child: const Text('default'),
                               ),
@@ -380,8 +407,8 @@ class _ConnectingState extends State<Connecting> {
                               Expanded(
                                 child: Slider(
                                   value: toggleSlider.toDouble(),
-                                  min: 0,
-                                  max: 1000,
+                                  min: 200,
+                                  max: 2000,
                                   onChanged: (value) {
                                     setState(() {
                                       toggleSlider = value.toInt();
@@ -389,19 +416,23 @@ class _ConnectingState extends State<Connecting> {
                                     debounce?.cancel();
                                     debounce =
                                         Timer(const Duration(seconds: 1), () {
-                                      int checkSum = 0x02 + 0x01 + toggleSlider;
+                                      // int checkSum = 0x02 + 0x01 + toggleSlider;
                                       subscribeCharacteristic(
                                           'try sending the settings again');
 
                                       ///slider
-                                      String hexString = toggleDelay
+                                      String hexString = toggleSlider
                                           .toRadixString(16)
                                           .padLeft(4, '0')
                                           .toUpperCase();
+                                      int checkSum =
+                                          0x03 + 0x02 + int.parse(hexString.substring(0, 2),
+                                              radix: 16)+int.parse(hexString.substring(2, 4),
+                                              radix: 16);
                                       widget.writeWithoutResponse(
                                           widget.characteristic, [
                                         0xAA,
-                                        0x02,
+                                        0x03,
                                         0x02,
                                         int.parse(hexString.substring(0, 2),
                                             radix: 16),
@@ -410,6 +441,15 @@ class _ConnectingState extends State<Connecting> {
                                         checkSum,
                                         0xBB,
                                       ]);
+                                      print('toggle mode ${[0xAA,
+    0x03,
+    0x02,
+    int.parse(hexString.substring(0, 2),
+    radix: 16),
+    int.parse(hexString.substring(2, 4),
+    radix: 16),
+    checkSum,
+    0xBB,]}');
                                     });
                                   },
                                 ),
@@ -503,7 +543,8 @@ class _ConnectingState extends State<Connecting> {
     receiving = false;
     subscribeStream =
         widget.subscribeToCharacteristic(widget.characteristic).listen((event) {
-      if (event.length == 3 && event[1] == success[1]) {
+          print(event);
+      if ((event.length == 3 ||  event.length == 4) && event[1] == success[1]) {
         setState(() {
           isOn = true;
         });
